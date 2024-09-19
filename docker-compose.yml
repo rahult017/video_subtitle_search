@@ -1,0 +1,57 @@
+version: '3.8'
+
+networks:
+  prod_network:
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: video_subtitle-backend
+    restart: always
+    volumes:
+      - ./hr-static/:/usr/src/app/static/
+      - ./logs/gunicorn/:/usr/src/app/logs/gunicorn/
+    ports:
+      - "8010:8000"
+    env_file:
+      - .env
+    depends_on:
+      - redis_video_subtitle
+    networks:
+      - prod_network
+
+  redis_hr:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --save 60 1 --loglevel warning
+    mem_limit: 500m
+    networks:
+      - prod_network
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.celery
+    container_name: video-subtitle-celery-worker
+    restart: always
+    env_file:
+      - ./.env
+    depends_on:
+      - redis_video_subtitle
+    networks:
+      - prod_network
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.beat
+    container_name: video-subtitle-celery-beat
+    restart: always
+    env_file:
+      - ./.env
+    depends_on:
+      - redis_video_subtitle
+    networks:
+      - prod_network
